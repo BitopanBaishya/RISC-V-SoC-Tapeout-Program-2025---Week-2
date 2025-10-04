@@ -1,6 +1,6 @@
 # Week 2: Fundamentals of SoC, Introduction to VSDBabySoC & its Functional Modelling
  
-The focus of this week is 
+The focus of this week is to understand the fundamentals of System-on-Chip (SoC) design and get hands-on exposure to the VSDBabySoC educational platform. We will start by exploring SoC concepts, computer architecture basics, and the RISC-V instruction set. Then, we will dive into the primary components of VSDBabySoC—RVMYTH CPU, PLL, UART, and DAC—and learn how they interact. Finally, we will perform functional modelling of VSDBabySoC, simulating its behavior using TL-Verilog, Verilog, Icarus, and GTKWave to observe digital and analog outputs. This week blends theoretical understanding with practical simulation experience to build a strong foundation in SoC design.
 
 ---
 
@@ -12,6 +12,10 @@ The focus of this week is
 [4. Intellectual Property (IP) Cores in SoCs](#4-intellectual-property-ip-cores-in-socs) <br>
 [5. Introduction to VSDBabySoC](#5-introduction-to-vsdbabysoc) <br>
 [6. Components of VSDBabySoC](#6-components-of-vsdbabysoc)<br>
+[7. Functional Modelling in SoC Design](#7-functional-modelling-in-soc-design)<br>
+[8. Functional Modelling of VSDBabySoC](#8-functional-modelling-of-vsdbabysoc)<br>
+[⚠️ Challenges](#%EF%B8%8F-challenges)<br>
+[🏁 Final Remarks](#-final-remarks)
 
 ---
 
@@ -557,3 +561,259 @@ The Digital-to-Analog Converter (DAC) in VSDBabySoC is the bridge between digita
   * The file can then be:
     * Plotted on a graph (to visualize the waveform, e.g., a sine wave).
     * Fed into external tools or devices (like simulation software for TV/mobile phone inputs) to mimic real-world usage.
+
+---
+
+## 7. Functional Modelling in SoC Design.
+### <ins>1. Introduction to Functional Modelling</ins><br>
+Functional modelling represents the *logical behavior* of an SoC without getting into its actual physical implementation or timing delays. It’s the first phase in verifying whether the integrated design of CPU, memory, and peripherals behaves as expected.<br>*You can think of it as running your chip’s “imagination” — it doesn’t yet exist in silicon, but its brain already works in simulation.*
+
+### <ins>2. Purpose of Functional Modelling</ins><br>
+The main goals of functional modelling are:
+- To verify that all modules (CPU, DAC, PLL, etc.) communicate correctly.
+- To validate data flow, control signals, and synchronization at a logical level.
+- To catch design bugs early, before synthesis or physical design.
+- To develop and test software/firmware even before the chip is fabricated.
+
+### <ins>3. Levels of Modelling</ins><br>
+In SoC design, there are multiple abstraction layers:
+| Modelling Type | Description |
+| :---: | :---: |
+| Behavioral / Functional | Describes what the system does |
+| RTL (Register Transfer Level) | Adds timing and clock behavior |
+| Gate-Level | Describes logic gates and interconnections |
+| Physical / Layout | Represents placement, routing, parasitics |
+
+---
+
+## 8. Functional Modelling of VSDBabySoC.
+### <ins>1. Flow of Modelling</ins><br>
+```
+TL-Verilog (RVMYTH)  →  Verilog (via SandPiper)
+                              ↓
+        +----------------------+
+        |   vsdbabysoc.v (Top) |
+        +----------------------+
+                 ↓
+          +--------------+
+          | avsdpll.v    |
+          | avsddac.v    |
+          +--------------+
+                 ↓
+         Testbench → Simulation (Icarus)
+                 ↓
+         Output Waveforms (GTKWave)
+
+```
+Explanation:
+* The RVMYTH core is first compiled from TL-Verilog to Verilog using SandPiper.
+* The top-level `vsdbabysoc.v` integrates RVMYTH, the DAC, and PLL.
+* The testbench applies stimuli and clocks.
+* Simulation results are analyzed using GTKWave to verify behavior.
+
+### <ins>2. Setup/Installations before Simulation</ins><br>
+- **Clone the Github Repository**:<br>
+  Clone the Github Repository inside any arbitrary folder of your choice:
+  ```
+  git clone https://github.com/manili/VSDBabySoC.git
+  cd VSDBabySoC/
+  ```
+- **Make another directory inside VSDBabySoC**:
+  ```
+  mkdir output
+  ```
+- **Final Directory Structure**:
+  ```
+  VSDBabySoC/
+  ├── src/
+  │   ├── include/                       # All the required header files (*.vh) are here
+  │   │   ├── sandpiper.vh
+  │   │   └── other header files...         
+  │   ├── module/                        # All the required .v and .tlv files are here
+  │   │   ├── vsdbabysoc.v               # Top-level module integrating all components
+  │   │   ├── rvmyth.v                   # RISC-V core module (CPU)
+  │   │   ├── avsdpll.v                  # PLL module (Clock)
+  │   │   ├── avsddac.v                  # DAC module (Digital to Analog Converter)
+  │   │   └── testbench.v                # Testbench for simulation
+  └── output/                            # All the outputs after simulation will be stored here
+  ```
+- **Installation of Sandpiper-Saas**:<br>
+  * **Installing prerequisites**:
+    ```
+    sudo apt update
+    sudo apt install python3-venv python3-pip
+    ```
+  * **Creating and activating a virtual environment**:
+    ```
+    python3 -m venv vsd_env
+    source vsd_env/bin/activate
+    ```
+  * **Installing SandPiper and dependencies**:
+    ```
+    pip install pyyaml click sandpiper-saas
+    ```
+    
+### <ins>3. Conversion of `.tlv` files to `.v` files</ins><br>
+Since the `rvmyth.tlv` file is written in TL-Verilog, we need to convert it to verilog file (`rvmyth.v`) before simulation.
+```
+sandpiper-saas -i ./src/module/*.tlv -o rvmyth.v --bestsv --noline -p verilog --outdir ./src/module/
+```
+
+Explanation:
+* `-i ./src/module/*.tlv` → input all `.tlv` files from the src/module directory.
+* `-o rvmyth.v` → main output Verilog file name.
+* `--bestsv` → tells SandPiper to generate SystemVerilog-compliant output (best quality for modern simulators).
+* `--noline` → removes extra debugging line markers (\line`) that sometimes confuse simulators like Icarus.
+* `-p verilog` → target output language (plain Verilog).
+* `--outdir ./src/module/` → specify where to place the generated Verilog files.
+
+After this command, the `.v` files of the RVMYTH core can be found inside the `.../src/modules/` directory.
+
+### <ins>4. Pre-synthesis Simulation</ins><br>
+```
+mkdir -p output/pre_synth_sim
+
+iverilog -o output/pre_synth_sim/pre_synth_sim.out \
+  -DPRE_SYNTH_SIM \
+  -I src/include -I src/module \
+  src/module/testbench.v
+
+cd output/pre_synth_sim
+./pre_synth_sim.out
+```
+Explanation:
+| Step | Command Breakdown | Purpose|
+| :--- | :--- | :--- |
+| 1 | `mkdir -p output/pre_synth_sim` | Create directory for simulation files |
+| 2 | `iverilog ...` | Compile Verilog design + testbench |
+| 3 | `-DPRE_SYNTH_SIM` | Define macro for conditional simulation |
+| 4 | `-I` options | Tell compiler where to find include files |
+| 5 | `src/module/testbench.v` | Main simulation input (testbench) |
+| 6 | `cd output/pre_synth_sim` | Move to output folder |
+| 7 | `./pre_synth_sim.out` | Run simulation executable |
+
+### <ins>5. Observation in GTKWave</ins><br>
+```
+gtkwave pre_synth_sim.vcd
+```
+The observed output is as follows:
+<div align="center">
+  <img src="Images/BabySoC_PreSynthesis_Simulation.png" alt="Alt Text" width="1000"/>
+</div>
+
+> [!CAUTION]
+> 1. **Multiple OUT Signals in GTKWave**:
+>    While analyzing the waveform, you may notice several `OUT` signals in the signal list. Only the `OUT` signal belonging to the `dac` module should be used for observation. You can find it under the hierarchy: <br>`vsdbabysoc_tb → UUT → DAC → OUT`. <br>See below for reference:
+>    <div align="center">
+>      <img src="Images/Correct_OUTsignal_selection.png" alt="Alt Text" width="1000"/>
+>    </div>
+>
+> 2. **Analog Waveform Not Visible Initially**:
+>    The` OUT` signal, even when correctly selected, will initially not appear as Analog signal. To visualize the analog-equivalent output, you need to change its data representation:
+>    * Right-click on the `OUT` signal in the waveform list.
+>    * Navigate to Data Format → Analog → Step.
+>
+>    After this conversion, the waveform will resemble a continuous analog signal corresponding to the digital input values. See below for reference:
+>    <div align="center">
+>      <img src="Images/SignalConversionToAnalog.png" alt="Alt Text" width="1000"/>
+>    </div>
+
+### <ins>6. Analysis of the observations</ins><br>
+The pre-synthesis simulation of the VSDBabySoC design was performed successfully using Icarus Verilog and visualized on GTKWave. The simulation included the integrated subsystems — RVMYTH core, DAC, and PLL — interacting under the testbench environment.
+
+- **Observation of Signal Hierarchy**:<br>
+  Within GTKWave, the hierarchy tree under `vsdbabysoc_tb → uut` reveals the internal connections of the SoC:
+  * The core generates the 10-bit digital output `RV_TO_DAC[9:0]`.
+  * The DAC module receives this signal and produces a corresponding real-valued output (`OUT`), representing the analog equivalent of the digital data.
+  * The PLL block stabilizes the system clock used across modules.
+
+- **Digital-to-Analog Transition**:<br>
+  The signal `RV_TO_DAC[9:0]` appears as a dense, rapidly switching digital pattern — this is expected, as it carries high-frequency digital codes generated by the RISC-V core.<br>
+  Meanwhile, the `OUT` signal (when converted to analog format) forms a smooth, continuous waveform — an elegant transformation of the discrete digital codes into their analog voltage representation.<br>
+  This verifies that:
+  * The DAC module is functioning correctly, converting the 10-bit binary input to a proportional analog value.
+  * The waveform shape (smooth red curve) indicates the variation in analog output as the digital input toggles through successive values.
+
+- **How Digital Data Becomes Analog — The Role of `r17`**:<br>
+  At the heart of the VSDBabySoC, the RVMYTH RISC-V core acts as the digital brain. Among its many registers, the `r17` register plays a special role — it holds the digital value that will be sent to the DAC.<br>
+  During program execution, the RISC-V core continuously updates the value in `r17`. This register’s 10 least significant bits (LSBs) are routed to the `RV_TO_DAC[9:0]` bus — the digital pathway leading directly into the DAC module. Inside the DAC, this 10-bit digital input is converted into a proportional analog voltage using a resistor network model (or its behavioral equivalent in Verilog). Mathematically, this can be represented as:<br>
+
+$$
+V_{OUT} = \frac{Digital\ Value}{2^{10}-1} \times (V_{REFH} - V_{REFL}) + V_{REFL}
+$$
+
+
+  Where:<br>
+  * *Digital Value* is the binary input from `r17[9:0]`
+  * *V<sub>REFH</sub>* and *V<sub>REFL</sub>* are the high and low reference voltages
+  * *V<sub>OUT</sub>* is the analog output corresponding to that digital code
+
+  As the RISC-V core updates `r17` periodically, the DAC output (`OUT`) varies continuously, creating the smooth analog waveform seen in the simulation. Thus, `r17` serves as the bridge between the digital computation world and the analog behavior of the SoC — translating processor data into real-world analog signals.
+
+- **Functional Validation**:<br>
+  From the waveform:
+  * The `CLK` and `reset` signals behave as expected — periodic clock pulses with a stable reset phase.
+  * The `RV_TO_DAC` changes synchronously with the clock, confirming proper core-to-DAC communication.
+  * The `OUT` waveform responds dynamically to these digital transitions, maintaining the correct analog correspondence.
+
+    Thus, the data flow from RVMYTH → DAC → OUT is validated, confirming the functional correctness of the SoC before synthesis.
+
+- **Insights**:<br>
+  * The gradual rise and fall of the analog curve represent digital ramp sequences generated by the RISC-V processor.
+  * The system demonstrates temporal coherence — meaning digital transitions directly affect analog output timing.
+  * The SoC achieves functional integrity, verifying all inter-module handshakes before hardware-level synthesis.
+
+---
+
+## ⚠️ Challenges
+
+- **Multiple `OUT` Signals in GTKWave**
+  * **Problem:**<br>
+    While analyzing the simulation results in GTKWave, multiple `OUT` signals appeared in the signal tree. This made it confusing to identify which one corresponded to the DAC output.
+
+  * **Cause:**<br>
+    The `OUT` signal name is reused or propagated across several modules (e.g., within the top-level testbench, the DAC, and possibly submodules). GTKWave lists all instances, so without careful inspection, you might end up viewing the wrong one.
+
+  * **Solution:**<br>
+    Expand the signal hierarchy in GTKWave as: `vsdbabysoc_tb → uut → dac → OUT` <br>
+    This path ensures that you’re viewing the actual analog output of the DAC module. Selecting this particular signal displays the correct waveform behavior expected from the digital-to-analog conversion.
+
+- **Output Appearing as Digital Values Instead of Analog Waveform**
+  * **Problem:**<br>
+    The `OUT` signal initially displayed as binary values, even though it was supposed to represent a continuous analog waveform.
+
+  * **Cause:**<br>
+    GTKWave, by default, plots all signals in a binary digital format. The DAC’s `OUT` signal, being of type real, needs manual conversion to visualize its analog nature.
+
+  * **Solution:**<br>
+    In GTKWave:<br>
+    1. Right-click on the `OUT` signal.
+    2. Go to Data Format → Analog → Step.
+    3. The waveform now appears as a smooth analog curve, clearly showing the variation of the DAC output voltage with time.
+
+
+---
+
+## 🏁 Final Remarks
+Week 2 represents a deeper dive into the world of SoC design, moving beyond basic RTL and synthesis concepts into the realm of integrated systems, RISC-V architecture, and functional modelling. This week primarily focused on:<br>
+- Understanding the architecture and significance of System-on-Chip (SoC), including its components, design flow, and real-world applications.
+- Exploring the fundamentals of computer architecture, CPU cores, instruction decoding, and single-cycle versus pipelined processors.
+- Learning the RISC-V ISA, its modular design, assembly programming, and how RVMYTH serves as an educational core in BabySoC.
+- Grasping the concept of Intellectual Property (IP) cores and their role in SoC integration.
+- Gaining hands-on experience with VSDBabySoC, understanding its architecture, key IP cores (RVMYTH, PLL, UART, DAC), and the interactions between them.
+- Implementing functional modelling for the SoC, including TL-Verilog to Verilog conversion, pre-synthesis simulation, and waveform observation with GTKWave.
+
+Along the way, several challenges were encountered: from setting up SandPiper-Saas and resolving TL-Verilog to Verilog conversion issues, to understanding timing and data flow between IP cores, and debugging waveform outputs in GTKWave. Each of these obstacles reinforced the importance of precise configuration, careful signal tracing, and thorough validation at the functional level before synthesis.<br>
+By the end of this week, the progression from understanding SoC theory to executing functional modelling of VSDBabySoC highlights the essence of system-level design: it is not just about writing RTL, but about ensuring that the entire system—digital, analog, and communication blocks—works harmoniously in simulation. This foundation sets the stage for more advanced design, verification, and eventual synthesis, emphasizing that designing a chip is as much an art of integration and verification as it is of coding.
+
+
+
+>[!IMPORTANT]
+> For easy navigation to all the weeks of the program, please visit the [Master Repository](https://github.com/BitopanBaishya/VSD-Tapeout-Program-2025.git).
+
+
+
+
+
+
+
